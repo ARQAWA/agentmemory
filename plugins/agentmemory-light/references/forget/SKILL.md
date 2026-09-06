@@ -1,13 +1,13 @@
 ---
 name: forget
-description: Delete specific observations from agentmemory after showing them and getting explicit confirmation. Use when the user says "forget this", "delete memory", "remove that note", or wants to scrub specific data for privacy.
+description: Delete specific saved memories from agentmemory after showing them and getting explicit confirmation. Use when the user says "forget this", "delete memory", "remove that note", or wants to scrub specific data for privacy.
 ---
 
 > Applicability: root sessions only. Child sessions never use this skill.
 > This skill does not override primary working rules.
 
 
-The user wants to remove data from agentmemory: $ARGUMENTS
+The user wants to remove saved memory from agentmemory: $ARGUMENTS
 
 ## Quick start
 
@@ -30,7 +30,7 @@ Found 2 matching memories. Confirmed. Deleted 2 memories.
 ## Why
 
 This is destructive and irreversible. Show exactly what will be deleted and get
-an explicit yes before calling delete. Delete by memory ID, never a bare session.
+an explicit yes before calling delete. Delete by memory ID, never a bare session. This MCP deletes saved `mem_` records only; observation records (`obs_`) are not deleted by it. Do not pass `obs_` ids or report that they were deleted.
 
 ## Workflow
 
@@ -38,7 +38,7 @@ an explicit yes before calling delete. Delete by memory ID, never a bare session
 2. Show what matched: session ids, memory ids, titles. Ask for explicit
    confirmation. Do not proceed on silence or a vague "sure, whatever".
 3. On confirmation, call `memory_governance_delete` with `memoryIds` as a comma-separated string and optional `reason` (default `plugin skill request`).
-4. Do not treat a limited search as a full inventory of a session; only delete the exact ids shown and confirmed. The MCP does not accept a bare `sessionId`.
+4. Do not treat a limited search as a full inventory of a session; only delete the exact ids shown and confirmed. The MCP does not accept a bare `sessionId`. `memory_governance_delete` removes saved `mem_` records only; observation `obs_` records require the separate session cleanup path and are outside this MCP action.
 5. Lessons are separate: delete one with `memory_lesson_delete` and its
    `lessonId`; `memory_governance_delete` does not touch lessons.
 6. Report the deletion count back. A count of 0 means the ids did not exist;
@@ -55,6 +55,7 @@ an explicit yes.
 ## Checklist
 
 - Matches were shown to the user before any delete.
+- Only saved `mem_` records were targeted; `obs_` records were not reported as deleted.
 - An explicit yes was received, not assumed.
 - `memoryIds` holds real ids from the search, never a bare `sessionId`.
 - Final message states the actual count deleted.
