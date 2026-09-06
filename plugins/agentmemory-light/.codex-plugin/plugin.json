@@ -1,6 +1,6 @@
 {
   "name": "agentmemory-light",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "Root-only AgentMemory skills and session context hooks, adapted by ARQAWA.",
   "author": {
     "name": "Rohit Ghumare",
