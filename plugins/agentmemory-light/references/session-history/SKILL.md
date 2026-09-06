@@ -32,7 +32,7 @@ real answer, never a cue to invent past work.
 ## Workflow
 
 1. Call `memory_sessions` with `limit: 20` for a meaningful window.
-2. Present in reverse chronological order: session id (first 8), project, start
+2. Filter to the injected current memory project (`session.project`), unless the user explicitly requests another project. Present in reverse chronological order: session id (first 8), project, start
    time, status.
 3. For sessions with observations, show the key highlights (type plus title).
 4. Note the total observation count per session.
@@ -57,7 +57,7 @@ observation count.
 
 - `recap`: same data grouped by date with highlights.
 - `handoff`: jump straight into the most recent session.
-- `recall`: search across all sessions by topic.
+- `recall`: search the current project by topic.
 
 ## Troubleshooting
 

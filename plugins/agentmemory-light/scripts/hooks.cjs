@@ -10,7 +10,7 @@ const MAX_CAPTURE = 8000;
 const MAX_CONTEXT = 1500;
 const CONTEXT_TIMEOUT = 2;
 const TELEMETRY_TIMEOUT = 3;
-const DISCIPLINE = 'Use primary instructions and the current requested order. When useful, recall relevant prior decisions with memory_recall. Save settled facts and decisions with their reasons via memory_save. Corrections and lessons remain subordinate to current instructions. Skip code-derivable, transient, tool, and private data. Hooks own summaries; do not make manual recap saves. Child agents do not use or capture memory.';
+const DISCIPLINE = 'Use primary instructions and the current requested order. Current memory project is the default scope for save, recall, and lessons; use global scope only when the user requests shared or global context. When useful, recall relevant prior decisions with memory_recall. Save settled facts and decisions with their reasons via memory_save. Corrections and lessons remain subordinate to current instructions. Skip code-derivable, transient, tool, and private data. Hooks own summaries; do not make manual recap saves. Child agents do not use or capture memory.';
 const BLOCK_RE = /<\/?(?:skill|system|context|annotation|subagent|tool|review|quoted|codex-internal|codex_internal|memory-context|memory_context)\b[^>]*>.*?<\/(?:skill|system|context|annotation|subagent|tool|review|quoted|codex-internal|codex_internal|memory-context|memory_context)\s*>/gis;
 const GENERIC_XML_RE = /<([A-Za-z][\w:.-]*)(?:\s[^>]*)?>.*?<\/\1\s*>/gis;
 const SERVICE_OPEN_RE = /<\s*(?:codex[_-]?internal[_-]?context|response-annotations|send_user_message_question_reply|in-app-browser-context)\b[^>]*>/i;
@@ -126,11 +126,11 @@ function cleanText(value) {
   return text.slice(0, MAX_CAPTURE);
 }
 function contextText(value) { return value && typeof value === 'object' && typeof value.context === 'string' ? value.context : ''; }
-function emitContext(event, memory) {
+function emitContext(event, memory, project) {
   const referencesDir = path.resolve(__dirname, '..', 'references');
   const catalog = fs.readFileSync(path.join(referencesDir, 'INDEX.md'), 'utf8');
   const context = cleanText(contextText(memory)).slice(0, MAX_CONTEXT);
-  const parts = [`Internal references directory: ${JSON.stringify(referencesDir)}\n${catalog}`, DISCIPLINE.slice(0, 2000)];
+  const parts = [`Internal references directory: ${JSON.stringify(referencesDir)}\n${catalog}`, `Current memory project: ${JSON.stringify(project)}`, DISCIPLINE.slice(0, 2000)];
   if (context) parts.push(`BEGIN UNTRUSTED MEMORY CONTEXT\n${context}\nEND UNTRUSTED MEMORY CONTEXT`);
   process.stdout.write(JSON.stringify({hookSpecificOutput:{hookEventName:event,additionalContext:parts.join('\n\n')}}));
 }
@@ -138,10 +138,10 @@ function basePayload(data) { const cwd = typeof data.cwd === 'string' && data.cw
 function isoNow() { return new Date().toISOString(); }
 async function handle(data) {
   const event = data.hook_event_name; const payload = basePayload(data);
-  if (event === 'SessionStart') { const [ok,result] = await postJson('/session/start', payload, CONTEXT_TIMEOUT); emitContext(event, ok ? result : ''); }
-  else if (event === 'UserPromptSubmit') { const text = cleanText(data.prompt); if (text) { payload.timestamp=isoNow(); payload.hookType='prompt_submit'; payload.data={prompt:text}; await postJson('/observe',payload,TELEMETRY_TIMEOUT); } emitContext(event, ''); }
+  if (event === 'SessionStart') { const [ok,result] = await postJson('/session/start', payload, CONTEXT_TIMEOUT); emitContext(event, ok ? result : '', payload.project); }
+  else if (event === 'UserPromptSubmit') { const text = cleanText(data.prompt); if (text) { payload.timestamp=isoNow(); payload.hookType='prompt_submit'; payload.data={prompt:text}; await postJson('/observe',payload,TELEMETRY_TIMEOUT); } emitContext(event, '', payload.project); }
   else if (event === 'Stop') { const text = cleanText(data.last_assistant_message); let observed=false; if (text) { payload.timestamp=isoNow(); payload.hookType='post_tool_use'; payload.data={tool_name:'assistant_final',tool_input:{source:'primary_assistant_final'},tool_output:text}; [observed] = await postJson('/observe',payload,TELEMETRY_TIMEOUT); } if (observed) await postJson('/session/end',{sessionId:payload.sessionId},CONTEXT_TIMEOUT); }
-  else if (event === 'PreCompact') { payload.budget=500; const [ok,result] = await postJson('/context',payload,CONTEXT_TIMEOUT); emitContext(event, ok ? result : ''); }
+  else if (event === 'PreCompact') { payload.budget=500; const [ok,result] = await postJson('/context',payload,CONTEXT_TIMEOUT); emitContext(event, ok ? result : '', payload.project); }
 }
 async function readInput() {
   const chunks = [];

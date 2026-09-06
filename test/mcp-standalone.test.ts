@@ -90,6 +90,14 @@ describe("Tools Registry", () => {
       expect(tool.inputSchema.properties).toBeDefined();
     }
   });
+
+  it("memory_recall schema accepts a project scope", () => {
+    const recall = getAllTools().find((tool) => tool.name === "memory_recall");
+    expect(recall?.inputSchema.properties.project).toEqual({
+      type: "string",
+      description: "Canonical project identifier to filter by; use the current memory project for project-specific recall",
+    });
+  });
 });
 
 describe("InMemoryKV", () => {

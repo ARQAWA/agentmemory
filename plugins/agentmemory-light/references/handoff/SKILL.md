@@ -15,7 +15,7 @@ The user wants to resume work. Optional cwd override: $ARGUMENTS
 memory_sessions { "limit": 20 }
 ```
 
-Pick the most recent session whose `cwd` matches this project, then:
+Pick the most recent session whose `project` matches the injected current memory project, then:
 `memory_recall { "query": "<session top concepts>", "limit": 10 }`.
 
 Expected output:
@@ -28,36 +28,32 @@ Next step: decide revoke scope, then update auth/logout.ts.
 
 ## Why
 
-Match the session by directory boundary, not raw prefix, so a sibling repo never
-gets mistaken for this one. Never invent observations for an empty session.
+Match the session by its canonical project field so another project is never selected. Never invent observations for an empty session.
 
 ## Workflow
 
-1. Resolve the project path: if `$ARGUMENTS` is given, normalize it to absolute
-   (`path.resolve(process.cwd(), $ARGUMENTS)`); else use the cwd.
-2. Call `memory_sessions`. Pick the most recent session whose normalized `cwd`
-   matches by directory boundary: equality, OR `cwd.startsWith(projectPath + sep)`,
-   OR `projectPath.startsWith(cwd + sep)`. Prefer `completed` over `abandoned`.
-   No match: fall back to the single most recent session overall.
+1. Use the injected current memory project unless `$ARGUMENTS` explicitly names
+   another project.
+2. Call `memory_sessions`. Pick the most recent session whose `project` equals the selected project. Prefer `completed` over `abandoned`.
+   If the user explicitly names another project, use that project as an override.
+   No match: report no session for that project; do not fall back to another project.
 3. If the session ended on an unanswered user-facing question, surface it FIRST.
    Look in `summary` or recent `conversation` observations whose `narrative`
    ends in `?`.
 4. Summarize: title/summary, key files, key decisions or errors, using
-   `memory_recall` on the top concepts, limit 10.
+   `memory_recall` on the top concepts, limit 10, and the current memory project.
 5. End with one concrete "next step?" pointer.
 
 ## Anti-patterns
 
-WRONG: `session.cwd.startsWith(projectPath)` matches `/repo-a-staging` when the
-project is `/repo-a`, resuming the wrong repo's session.
+WRONG: select the most recent session overall when the selected project has no match.
 
-RIGHT: `session.cwd === projectPath || session.cwd.startsWith(projectPath + sep)`,
-a directory-boundary check that cannot cross sibling repos.
+RIGHT: report no session for that project and do not cross the project boundary.
 
 ## Checklist
 
-- cwd override resolved to an absolute, normalized path.
-- Match used a directory-boundary check, not a raw prefix.
+- Project scope came from the injected identifier or an explicit user override.
+- Match used the exact project field.
 - Unanswered question (if any) leads the response.
 - Empty session is reported plainly, with an offer to start fresh.
 

@@ -12,7 +12,7 @@ The user wants to remove saved memory from agentmemory: $ARGUMENTS
 ## Quick start
 
 ```json
-memory_smart_search { "query": "old api key in config", "limit": 20 }
+memory_recall { "query": "old api key in config", "limit": 20, "project": "agentmemory" }
 ```
 
 Show the matches, get a yes, then:
@@ -34,7 +34,7 @@ an explicit yes before calling delete. Delete by memory ID, never a bare session
 
 ## Workflow
 
-1. Search with `memory_smart_search`, the user's text as `query`, `limit: 20`.
+1. Search with `memory_recall`, the user's text as `query`, `limit: 20`, and the injected current memory `project`.
 2. Show what matched: session ids, memory ids, titles. Ask for explicit
    confirmation. Do not proceed on silence or a vague "sure, whatever".
 3. On confirmation, call `memory_governance_delete` with `memoryIds` as a comma-separated string and optional `reason` (default `plugin skill request`).

@@ -12,7 +12,7 @@ The user wants to recall past context about: $ARGUMENTS
 ## Quick start
 
 ```json
-memory_smart_search { "query": "jwt refresh token rotation", "limit": 10 }
+memory_recall { "query": "jwt refresh token rotation", "limit": 10, "project": "agentmemory" }
 ```
 
 Expected output:
@@ -30,8 +30,7 @@ id, or an importance score. If nothing comes back, say so.
 
 ## Workflow
 
-1. Call `memory_smart_search` with the user's text as `query` and `limit: 10`.
-   If a project is explicitly requested, filter only by confirmed project or session metadata in the returned records; do not claim the server applied a project filter, and report when the project cannot be established.
+1. Call `memory_recall` with the user's text as `query`, `limit: 10`, and the injected current memory `project`. If the user explicitly requests another project, use that project as an override.
 2. Group results by session. Records carry a provenance channel (`user`, `agent`,
    `tool`, `import`, `shared`); when results conflict, prefer `user` over `agent`
    inference, and flag `shared` records as another teammate's write.

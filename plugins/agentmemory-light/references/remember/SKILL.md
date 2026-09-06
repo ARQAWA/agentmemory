@@ -15,7 +15,8 @@ The user wants to save this to long-term memory: $ARGUMENTS
 memory_save {
   "content": "We rotate JWT refresh tokens on every use; the old token is revoked server-side in auth/refresh.ts.",
   "concepts": "jwt-refresh-rotation, token-revocation, auth-flow",
-  "files": "src/auth/refresh.ts"
+  "files": "src/auth/refresh.ts",
+  "project": "agentmemory"
 }
 ```
 
@@ -37,7 +38,7 @@ concepts so a future `recall` finds it, and preserve the user's own phrasing.
    (`jwt-refresh-rotation` beats `auth`).
 3. Extract referenced file paths (absolute or repo-relative). Empty if none.
 4. Call `memory_save` with `content`, `concepts` (comma-separated string), and
-   `files` (comma-separated string). Keep the save scoped to the current root
+   `files` (comma-separated string), and `project` set to the injected current memory project. Keep the save scoped to the current root
    session; do not route memory to child agents.
 5. Confirm the save and echo the concepts so the user knows the retrieval terms.
 6. To update a fact, save the corrected version outright: near-duplicate content

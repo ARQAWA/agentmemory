@@ -121,12 +121,14 @@ export function registerMcpEndpoints(
               typeof args.agentId === "string" && args.agentId.trim().length > 0
                 ? (args.agentId as string).trim()
                 : undefined;
+            const recallProject = asNonEmptyString(args.project);
             const result = await sdk.trigger({ function_id: "mem::search", payload: {
               query: args.query,
               limit: typeof args.limit === "number" ? args.limit : 10,
               format,
               token_budget: tokenBudget,
               agentId: recallAgentId,
+              project: recallProject,
             } });
             const text =
               format === "narrative" &&

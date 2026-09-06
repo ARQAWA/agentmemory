@@ -140,11 +140,13 @@ describe("agentmemory-light plugin", () => {
     expect(context).toContain("memory says");
     expect(context).toContain("Use primary instructions and the current requested order");
     expect(context).toContain("Internal references directory:");
+    expect(context).toContain('Current memory project: "agentmemory"');
     expect(context).toContain(JSON.stringify(REFERENCES_PATH));
     expect(context).toContain("remember/SKILL.md");
     expect(curlLog(f)).toContain("/agentmemory/session/start");
     expect(context).not.toContain("do not include nested");
     expect(curlLog(f)).toContain("sid-light");
+    expect(curlLog(f)).toContain('\\"project\\":\\"agentmemory\\"');
   });
 
   it("accepts canonical root thread_source values", async () => {

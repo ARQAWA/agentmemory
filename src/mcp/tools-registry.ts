@@ -32,6 +32,10 @@ export const CORE_TOOLS: McpToolDef[] = [
           type: "number",
           description: "Optional token budget to trim returned results",
         },
+        project: {
+          type: "string",
+          description: "Canonical project identifier to filter by; use the current memory project for project-specific recall",
+        },
       },
       required: ["query"],
     },
