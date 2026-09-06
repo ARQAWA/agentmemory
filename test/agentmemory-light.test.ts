@@ -49,9 +49,11 @@ function fixture() {
   const home = join(root, "codex");
   const transcript = join(root, "session.jsonl");
   mkdirSync(home);
+  const command = JSON.stringify(process.execPath);
+  const adapter = JSON.stringify(resolve("scripts/mcp-proxy.cjs"));
   writeFileSync(
     join(home, "config.toml"),
-    `[mcp_servers.agentmemory]\nargs = ["--transport", "streamablehttp", "http://agentmemory.test/mcp"]\n[mcp_servers.agentmemory.env]\nHTTP_PROXY = "http://user:pass@127.0.0.1:${proxyPort}"\n`,
+    `[mcp_servers.agentmemory]\ncommand = ${command}\nargs = [${adapter}, "http://agentmemory.test/mcp"]\n[mcp_servers.agentmemory.env]\nHTTP_PROXY = "http://user:pass@127.0.0.1:${proxyPort}"\n`,
   );
   writeFileSync(
     transcript,
