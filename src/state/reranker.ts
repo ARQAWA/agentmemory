@@ -18,7 +18,7 @@ async function loadPipeline(): Promise<any> {
       );
       pipeline = await createPipeline(
         "text-classification",
-        "Xenova/ms-marco-MiniLM-L-6-v2",
+        "Xenova/ms-marco-MiniLM-L-2-v2",
         { dtype: "q8" },
       );
       return pipeline;
@@ -49,20 +49,23 @@ export async function rerank(
   const reranker = await loadPipeline();
   if (!reranker) return results;
 
-  const pairs = candidates.map((r) => ({
-    text: `${query} [SEP] ${r.observation.title || ""} ${r.observation.narrative || ""}`.slice(0, 512),
-    result: r,
-  }));
-
   const scores: Array<{ result: HybridSearchResult; rerankScore: number }> = [];
 
-  for (const pair of pairs) {
+  for (const result of candidates) {
     try {
-      const output = await reranker(pair.text);
-      const score = Array.isArray(output) ? output[0]?.score ?? 0 : 0;
-      scores.push({ result: pair.result, rerankScore: score });
+      const document = `${result.observation.title || ""} ${result.observation.narrative || ""}`.trim();
+      const features = await reranker.tokenizer(query, {
+        text_pair: document,
+        padding: true,
+        truncation: true,
+        max_length: 512,
+      });
+      const output = await reranker.model(features);
+      const score = Number(output?.logits?.data?.[0]);
+      if (!Number.isFinite(score)) throw new Error("Invalid reranker score");
+      scores.push({ result, rerankScore: score });
     } catch {
-      scores.push({ result: pair.result, rerankScore: pair.result.combinedScore });
+      scores.push({ result, rerankScore: result.combinedScore });
     }
   }
 

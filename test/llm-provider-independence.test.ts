@@ -14,16 +14,24 @@ describe("independent LLM and embedding configuration", () => {
   it("loads the compression override and defaults it to the primary model", () => {
     process.env.OPENAI_API_KEY = "primary-key";
     process.env.OPENAI_MODEL = "gpt-5.6-terra";
+    process.env.OPENAI_REASONING_EFFORT = "high";
     process.env.AGENTMEMORY_COMPRESSION_MODEL = "gpt-5.6-luna";
-    expect(loadConfig().compressionModel).toBe("gpt-5.6-luna");
+    process.env.AGENTMEMORY_COMPRESSION_REASONING_EFFORT = "low";
+    expect(loadConfig()).toMatchObject({
+      compressionModel: "gpt-5.6-luna",
+      compressionReasoningEffort: "low",
+      provider: { reasoningEffort: "high" },
+    });
 
     delete process.env.AGENTMEMORY_COMPRESSION_MODEL;
+    delete process.env.AGENTMEMORY_COMPRESSION_REASONING_EFFORT;
     expect(loadConfig().compressionModel).toBe("gpt-5.6-terra");
+    expect(loadConfig().compressionReasoningEffort).toBe("high");
   });
 
-  it("sends Terra and Luna through the custom OpenAI endpoint with medium reasoning", async () => {
+  it("sends Terra and Luna through the custom OpenAI endpoint with independent reasoning", async () => {
     process.env.OPENAI_API_KEY = "custom-openai-key";
-    process.env.OPENAI_REASONING_EFFORT = "medium";
+    process.env.OPENAI_REASONING_EFFORT = "high";
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
       new Response(
         JSON.stringify({ choices: [{ message: { content: "ok" } }] }),
@@ -36,12 +44,14 @@ describe("independent LLM and embedding configuration", () => {
       model: "gpt-5.6-terra",
       maxTokens: 256,
       baseURL: "https://llm.example/v1",
+      reasoningEffort: "high",
     });
     const compression = createProvider({
       provider: "openai",
       model: "gpt-5.6-luna",
       maxTokens: 256,
       baseURL: "https://llm.example/v1",
+      reasoningEffort: "low",
     });
     await primary.compress("system", "analysis");
     await compression.compress("system", "observation");
@@ -58,10 +68,36 @@ describe("independent LLM and embedding configuration", () => {
         "Bearer custom-openai-key",
       );
       const body = JSON.parse(request.init.body as string);
-      expect(body.reasoning_effort).toBe("medium");
+      expect(body.reasoning_effort).toBe(requests.indexOf(request) === 0 ? "high" : "low");
     }
     expect(JSON.parse(requests[0].init.body as string).model).toBe("gpt-5.6-terra");
     expect(JSON.parse(requests[1].init.body as string).model).toBe("gpt-5.6-luna");
+  });
+
+  it("supports different reasoning efforts for the same model", async () => {
+    process.env.OPENAI_API_KEY = "custom-openai-key";
+    process.env.OPENAI_REASONING_EFFORT = "high";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+      new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), { status: 200 }),
+    );
+    const primary = createProvider({
+      provider: "openai",
+      model: "gpt-5.6-terra",
+      maxTokens: 256,
+      baseURL: "https://llm.example/v1",
+      reasoningEffort: "high",
+    });
+    const compression = createProvider({
+      provider: "openai",
+      model: "gpt-5.6-terra",
+      maxTokens: 256,
+      baseURL: "https://llm.example/v1",
+      reasoningEffort: "low",
+    });
+    await primary.compress("system", "analysis");
+    await compression.compress("system", "observation");
+    expect(JSON.parse(fetchMock.mock.calls[0][1]?.body as string).reasoning_effort).toBe("high");
+    expect(JSON.parse(fetchMock.mock.calls[1][1]?.body as string).reasoning_effort).toBe("low");
   });
 
   it("forces OpenRouter embeddings with its separate key and endpoint", async () => {

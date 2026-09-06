@@ -39,7 +39,7 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
     }
     this.extractor = (await transformers.pipeline(
       "feature-extraction",
-      "Xenova/all-MiniLM-L6-v2",
+      "Xenova/bge-small-en-v1.5",
       { dtype: "q8" },
     )) as FeatureExtractor;
     return this.extractor;

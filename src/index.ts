@@ -168,10 +168,15 @@ async function main() {
       ? createFallbackProvider(config.provider, fallbackConfig)
       : createProvider(config.provider);
   const compressionProvider =
-    config.compressionModel === config.provider.model
+    config.compressionModel === config.provider.model &&
+    config.compressionReasoningEffort === config.provider.reasoningEffort
       ? provider
       : createFallbackProvider(
-          { ...config.provider, model: config.compressionModel },
+          {
+            ...config.provider,
+            model: config.compressionModel,
+            reasoningEffort: config.compressionReasoningEffort,
+          },
           fallbackConfig,
         );
 

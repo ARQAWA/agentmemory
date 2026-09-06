@@ -165,6 +165,7 @@ export interface ProviderConfig {
   maxTokens: number;
   /** Optional base URL override (e.g. for Anthropic-compatible APIs or local proxies) */
   baseURL?: string;
+  reasoningEffort?: string;
 }
 
 export type ProviderType = "agent-sdk" | "anthropic" | "gemini" | "openrouter" | "minimax" | "openai" | "noop";
@@ -185,6 +186,7 @@ export interface AgentMemoryConfig {
   tokenBudget: number;
   maxObservationsPerSession: number;
   compressionModel: string;
+  compressionReasoningEffort?: string;
   dataDir: string;
 }
 

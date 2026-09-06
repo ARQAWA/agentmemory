@@ -38,7 +38,7 @@ describe("LocalEmbeddingProvider (with loaded pipeline)", () => {
 
     expect(pipeline).toHaveBeenCalledWith(
       "feature-extraction",
-      "Xenova/all-MiniLM-L6-v2",
+      "Xenova/bge-small-en-v1.5",
       { dtype: "q8" },
     );
     expect(extractor).toHaveBeenCalledWith(["hello"], {

@@ -68,9 +68,12 @@ describe("reranker with loaded pipeline", () => {
   });
 
   it("invokes the @huggingface/transformers pipeline and reorders by score", async () => {
-    const mockPipeline = vi.fn(async (text: string) => [
-      { score: text.includes("First") ? 0.9 : 0.1 },
-    ]);
+    const mockPipeline = {
+      tokenizer: vi.fn(async (_query: string, options: { text_pair: string }) => options),
+      model: vi.fn(async (features: { text_pair: string }) => ({
+        logits: { data: [features.text_pair.includes("First") ? 0.9 : 0.1] },
+      })),
+    };
     vi.doMock("@huggingface/transformers", () => ({
       pipeline: () => Promise.resolve(mockPipeline),
     }));
@@ -85,7 +88,13 @@ describe("reranker with loaded pipeline", () => {
 
     const reranked = await rerank("query", results);
 
-    expect(mockPipeline).toHaveBeenCalled();
+    expect(mockPipeline.tokenizer).toHaveBeenCalledWith("query", expect.objectContaining({
+      text_pair: "First",
+      padding: true,
+      truncation: true,
+      max_length: 512,
+    }));
+    expect(mockPipeline.model).toHaveBeenCalled();
     expect(reranked[0].observation.id).toBe("o1");
   });
 });

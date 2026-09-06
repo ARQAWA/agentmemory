@@ -55,12 +55,19 @@ export class OpenAIProvider implements MemoryProvider {
   private isAzure: boolean;
   private azureApiVersion: string;
 
-  constructor(apiKey: string, model: string, maxTokens: number, baseURL?: string) {
+  constructor(
+    apiKey: string,
+    model: string,
+    maxTokens: number,
+    baseURL?: string,
+    reasoningEffort?: string,
+  ) {
     this.apiKey = apiKey;
     this.model = model;
     this.maxTokens = maxTokens;
     this.baseUrl = normalizeBaseUrl(baseURL || getEnvVar("OPENAI_BASE_URL"));
-    this.reasoningEffort = getEnvVar("OPENAI_REASONING_EFFORT") || undefined;
+    this.reasoningEffort =
+      reasoningEffort ?? (getEnvVar("OPENAI_REASONING_EFFORT") || undefined);
     this.timeoutMs = resolveTimeout();
     this.azureApiVersion =
       getEnvVar("OPENAI_API_VERSION") || DEFAULT_AZURE_API_VERSION;

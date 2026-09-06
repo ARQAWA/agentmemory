@@ -93,6 +93,7 @@ function detectProvider(env: Record<string, string>): ProviderConfig {
       model: env["OPENAI_MODEL"] || "gpt-5.6-luna",
       maxTokens,
       baseURL: env["OPENAI_BASE_URL"],
+      reasoningEffort: env["OPENAI_REASONING_EFFORT"] || undefined,
     };
   }
 
@@ -217,6 +218,9 @@ export function loadConfig(): AgentMemoryConfig {
     maxObservationsPerSession: safeParseInt(env["MAX_OBS_PER_SESSION"], 500),
     compressionModel:
       env["AGENTMEMORY_COMPRESSION_MODEL"] || provider.model,
+    compressionReasoningEffort:
+      env["AGENTMEMORY_COMPRESSION_REASONING_EFFORT"] ||
+      provider.reasoningEffort,
     dataDir: DATA_DIR,
   };
 }

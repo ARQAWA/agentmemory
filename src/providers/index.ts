@@ -139,6 +139,7 @@ function createBaseProvider(config: ProviderConfig): MemoryProvider {
         config.model,
         config.maxTokens,
         config.baseURL,
+        config.reasoningEffort,
       );
     }
     case "noop":
