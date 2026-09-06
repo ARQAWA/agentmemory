@@ -3,6 +3,7 @@
 const readline = require('node:readline');
 const http = require('node:http');
 const https = require('node:https');
+const { isIP } = require('node:net');
 const { URL } = require('node:url');
 
 const REQUEST_TIMEOUT_MS = 180_000;
@@ -66,6 +67,7 @@ function request(method, body, timeoutMs, options = {}) {
     requestHeaders['Content-Length'] = requestBody.length;
   }
   const requestOptions = { protocol: proxy.protocol, hostname: proxy.hostname, port: proxy.port || undefined, method, path: target.href, headers: requestHeaders };
+  if (proxy.protocol === 'https:') requestOptions.servername = isIP(proxy.hostname) ? '' : proxy.hostname;
   return new Promise((resolve, reject) => {
     let settled = false;
     let timer;
