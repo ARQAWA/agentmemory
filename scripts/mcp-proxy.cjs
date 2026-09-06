@@ -129,7 +129,6 @@ function request(method, body, timeoutMs, options = {}) {
   });
 }
 function validate(response) { if (!response || response.statusCode < 200 || response.statusCode >= 300) throw httpError(response?.statusCode); return response; }
-function updateSession(response) { if (response?.headers?.['mcp-session-id']) sessionId = response.headers['mcp-session-id']; }
 async function postMessage(message) {
   let matchedMessage = null;
   const response = validate(await request('POST', message, REQUEST_TIMEOUT_MS, {
@@ -139,14 +138,13 @@ async function postMessage(message) {
       output(item); return false;
     },
   }));
-  updateSession(response);
   if (matchedMessage) return matchedMessage;
   if (!response.text) return null;
   try { return JSON.parse(response.text); } catch { throw jsonError(); }
 }
 async function openServerEvents() {
   if (closing) return;
-  try { await request('GET', undefined, SSE_IDLE_TIMEOUT_MS, { stream: true, onMessage: output }); }
+  try { validate(await request('GET', undefined, SSE_IDLE_TIMEOUT_MS, { stream: true, onMessage: output })); }
   catch (error) { if (!(error.code === 'HTTP' && error.status === 405)) process.stderr.write(`MCP SSE: ${safeError(error)}\n`); }
 }
 async function handleMessage(message) {
@@ -157,7 +155,11 @@ async function handleMessage(message) {
       initializing = (async () => {
         const response = await postMessage(message);
         if (!response || response.id !== message.id || !response.result || typeof response.result.protocolVersion !== 'string') {
-          if (response) output(response);
+          if (response?.id === message.id && response.error) {
+            const error = jsonError();
+            error.rpcResponse = response;
+            throw error;
+          }
           throw jsonError();
         }
         protocolVersion = response.result.protocolVersion;
@@ -183,7 +185,9 @@ async function handleMessage(message) {
     if (response) output(response);
     else if (isRequest) throw jsonError();
   } catch (error) {
-    if (isRequest) fail(message.id, error); else process.stderr.write(`MCP request: ${safeError(error)}\n`);
+    if (error?.rpcResponse) output(error.rpcResponse);
+    else if (isRequest) fail(message.id, error);
+    else process.stderr.write(`MCP request: ${safeError(error)}\n`);
   }
 }
 async function cleanup() {
