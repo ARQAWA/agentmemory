@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks.py\"",
+            "command": "node -e \"require(require('node:path').join(process.env.PLUGIN_ROOT,'scripts','hooks.cjs')).main()\"",
             "timeout": 10
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks.py\"",
+            "command": "node -e \"require(require('node:path').join(process.env.PLUGIN_ROOT,'scripts','hooks.cjs')).main()\"",
             "timeout": 10,
             "async": true
           }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks.py\"",
+            "command": "node -e \"require(require('node:path').join(process.env.PLUGIN_ROOT,'scripts','hooks.cjs')).main()\"",
             "timeout": 10,
             "async": true
           }
@@ -40,7 +40,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks.py\"",
+            "command": "node -e \"require(require('node:path').join(process.env.PLUGIN_ROOT,'scripts','hooks.cjs')).main()\"",
             "timeout": 10
           }
         ]

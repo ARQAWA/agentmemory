@@ -8,7 +8,7 @@ description: AgentMemory Light root hooks for automatic prompt, stop, session-st
 
 AgentMemory Light uses four native lifecycle hooks for root sessions:
 `SessionStart`, `UserPromptSubmit`, `Stop`, and `PreCompact`. The hooks run
-`python3` from this plugin and require an existing AgentMemory MCP transport.
+Node.js 20 or newer from this plugin and require an existing AgentMemory MCP transport.
 They reject child-agent provenance before any network request.
 
 ## Install

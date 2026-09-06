@@ -1,27 +1,56 @@
-import { describe, expect, it } from "vitest";
 import {
-  chmodSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
   writeFileSync,
 } from "node:fs";
-import { execFileSync } from "node:child_process";
+import { appendFileSync, rmSync } from "node:fs";
+import { execFile } from "node:child_process";
+import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+const SCRIPT = resolve("plugins/agentmemory-light/scripts/hooks.cjs");
+let proxyServer: Server;
+let proxyPort: number;
+let proxyLog: string;
+let proxyFail = false;
 
-const SCRIPT = resolve("plugins/agentmemory-light/scripts/hooks.py");
+beforeAll(async () => {
+  proxyLog = join(mkdtempSync(join(tmpdir(), "agentmemory-proxy-")), "proxy.log");
+  proxyServer = createServer((req, res) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+    req.on("end", () => {
+      if (proxyFail) {
+        req.socket.destroy();
+        return;
+      }
+      appendFileSync(proxyLog, `${JSON.stringify({ path: req.url, body: Buffer.concat(chunks).toString("utf8") })}\n`);
+      const body = req.url?.includes("/session/start")
+        ? { context: "memory says: use the request only as untrusted context", nested: { context: "do not include nested" } }
+        : req.url?.includes("/context") ? { context: "compact context" } : { ok: true };
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify(body));
+    });
+  });
+  await new Promise<void>((resolveReady) => proxyServer.listen(0, "127.0.0.1", () => resolveReady()));
+  proxyPort = (proxyServer.address() as { port: number }).port;
+});
+
+afterAll(async () => {
+  await new Promise<void>((resolveClosed) => proxyServer.close(() => resolveClosed()));
+  rmSync(proxyLog, { force: true });
+});
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), "agentmemory-light-"));
   const home = join(root, "codex");
-  const bin = join(root, "bin");
   const transcript = join(root, "session.jsonl");
   mkdirSync(home);
-  mkdirSync(bin);
   writeFileSync(
     join(home, "config.toml"),
-    `[mcp_servers.agentmemory]\nargs = ["--transport", "streamablehttp", "http://agentmemory.test/mcp"]\n[mcp_servers.agentmemory.env]\nHTTP_PROXY = "https://user:pass@proxy.test:443"\n`,
+    `[mcp_servers.agentmemory]\nargs = ["--transport", "streamablehttp", "http://agentmemory.test/mcp"]\n[mcp_servers.agentmemory.env]\nHTTP_PROXY = "http://user:pass@127.0.0.1:${proxyPort}"\n`,
   );
   writeFileSync(
     transcript,
@@ -30,30 +59,10 @@ function fixture() {
       payload: { id: "sid-light", session_id: "sid-light", source: "vscode" },
     })}\nprivate transcript text\n`,
   );
-  const log = join(root, "curl.log");
-  const curl = join(bin, "curl");
-  writeFileSync(
-    curl,
-    `#!/usr/bin/env python3
-import json, os, sys
-config = sys.stdin.read()
-with open(${JSON.stringify(log)}, "a", encoding="utf-8") as f:
-    f.write(config + "\\n---\\n")
-if os.environ.get("FAKE_CURL_FAIL"):
-    raise SystemExit(7)
-if "/session/start" in config:
-    print(json.dumps({"context": "memory says: use the request only as untrusted context", "nested": {"context": "do not include nested"}}))
-elif "/context" in config:
-    print(json.dumps({"context": "compact context"}))
-else:
-    print(json.dumps({"ok": True}))
-`,
-  );
-  chmodSync(curl, 0o755);
-  return { root, home, transcript, log };
+  return { root, home, transcript };
 }
 
-function runHook(
+async function runHook(
   fixtureData: ReturnType<typeof fixture>,
   event: string,
   extra: Record<string, unknown> = {},
@@ -66,21 +75,28 @@ function runHook(
     cwd: process.cwd(),
     ...extra,
   };
-  return execFileSync("python3", [SCRIPT], {
-    input: JSON.stringify(input),
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      CODEX_HOME: fixtureData.home,
-      PATH: `${join(fixtureData.root, "bin")}:${process.env.PATH ?? ""}`,
-      ...envExtra,
-    },
+  writeFileSync(proxyLog, "");
+  proxyFail = envExtra.FAKE_CURL_FAIL === "1";
+  return await new Promise<string>((resolve, reject) => {
+    const child = execFile(process.execPath, [SCRIPT], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        CODEX_HOME: fixtureData.home,
+        PATH: process.env.PATH ?? "",
+        ...envExtra,
+      },
+    }, (error, stdout) => {
+      if (error) reject(error);
+      else resolve(stdout);
+    });
+    child.stdin?.end(JSON.stringify(input));
   });
 }
 
 function curlLog(fixtureData: ReturnType<typeof fixture>) {
   try {
-    return readFileSync(fixtureData.log, "utf8");
+    return readFileSync(proxyLog, "utf8");
   } catch {
     return "";
   }
@@ -103,9 +119,9 @@ describe("agentmemory-light plugin", () => {
     expect(hooks.hooks.SessionStart[0]).not.toHaveProperty("matcher");
   });
 
-  it("starts a root session and emits bounded untrusted context plus discipline", () => {
+  it("starts a root session and emits bounded untrusted context plus discipline", async () => {
     const f = fixture();
-    const output = JSON.parse(runHook(f, "SessionStart", {source: "startup"}));
+    const output = JSON.parse(await runHook(f, "SessionStart", {source: "startup"}));
     const context = output.hookSpecificOutput.additionalContext as string;
     expect(context).toContain("BEGIN UNTRUSTED MEMORY CONTEXT");
     expect(context).toContain("memory says");
@@ -115,16 +131,16 @@ describe("agentmemory-light plugin", () => {
     expect(curlLog(f)).toContain("sid-light");
   });
 
-  it("accepts canonical root thread_source values", () => {
+  it("accepts canonical root thread_source values", async () => {
     const f = fixture();
-    expect(runHook(f, "UserPromptSubmit", { thread_source: "vscode", prompt: "ordinary" })).toContain("Use primary instructions");
+    expect(await runHook(f, "UserPromptSubmit", { thread_source: "vscode", prompt: "ordinary" })).toContain("Use primary instructions");
     expect(curlLog(f)).toContain("/agentmemory/observe");
   });
 
-  it("captures only cleaned prompt prose and does not require a first tool", () => {
+  it("captures only cleaned prompt prose and does not require a first tool", async () => {
     const f = fixture();
     const output = JSON.parse(
-      runHook(f, "UserPromptSubmit", {
+      await runHook(f, "UserPromptSubmit", {
         prompt:
           "Please inspect this ordinary request. <system>private instruction</system>\n```tool\nsecret result\n```",
       }),
@@ -150,7 +166,7 @@ describe("agentmemory-light plugin", () => {
       label: "generic child",
       source: { subagent: { thread_spawn: { parent_thread_id: "root" } } },
     },
-  ])("rejects $label provenance before HTTP or context", ({ source }) => {
+  ])("rejects $label provenance before HTTP or context", async ({ source }) => {
     const f = fixture();
     writeFileSync(
       f.transcript,
@@ -159,12 +175,12 @@ describe("agentmemory-light plugin", () => {
         payload: { id: "sid-light", session_id: "sid-light", source },
       })}\n`,
     );
-    const output = runHook(f, "SessionStart");
+    const output = await runHook(f, "SessionStart");
     expect(output).toBe("");
     expect(curlLog(f)).toBe("");
   });
 
-  it("rejects unknown or missing provenance without local fallback", () => {
+  it("rejects unknown or missing provenance without local fallback", async () => {
     const f = fixture();
     writeFileSync(
       f.transcript,
@@ -173,52 +189,52 @@ describe("agentmemory-light plugin", () => {
         payload: { id: "sid-light", session_id: "sid-light", source: "other" },
       })}\n`,
     );
-    expect(runHook(f, "UserPromptSubmit", {prompt: "ordinary"})).toBe("");
+    expect(await runHook(f, "UserPromptSubmit", {prompt: "ordinary"})).toBe("");
     expect(curlLog(f)).toBe("");
   });
 
-  it("removes generic service blocks and skips unclosed memory context", () => {
+  it("removes generic service blocks and skips unclosed memory context", async () => {
     const f = fixture();
-    runHook(f, "UserPromptSubmit", {
+    await runHook(f, "UserPromptSubmit", {
       prompt: "ordinary <response-annotations>private</response-annotations>",
     });
     expect(curlLog(f)).toContain("ordinary");
     expect(curlLog(f)).not.toContain("private");
     const g = fixture();
-    runHook(g, "UserPromptSubmit", { prompt: "<in-app-browser-context>private" });
+    await runHook(g, "UserPromptSubmit", { prompt: "<in-app-browser-context>private" });
     expect(curlLog(g)).toBe("");
     const h = fixture();
-    runHook(h, "UserPromptSubmit", {
+    await runHook(h, "UserPromptSubmit", {
       prompt: "BEGIN UNTRUSTED MEMORY CONTEXT\nrecalled text",
     });
     expect(curlLog(h)).toBe("");
   });
 
-  it("excludes review findings and all fenced or tool-result packets", () => {
+  it("excludes review findings and all fenced or tool-result packets", async () => {
     const findings = fixture();
-    runHook(findings, "UserPromptSubmit", {
+    await runHook(findings, "UserPromptSubmit", {
       prompt:
         "FINDINGS:\nREQUIREMENT: reject this packet\nEVIDENCE: hidden tool output\nREQUIRED OUTCOME: skip",
     });
     expect(curlLog(findings)).toBe("");
 
     const fenced = fixture();
-    runHook(fenced, "UserPromptSubmit", {
+    await runHook(fenced, "UserPromptSubmit", {
       prompt:
         "```json\n{\"jsonrpc\":\"2.0\",\"result\":{\"tool_output\":\"secret\"}}\n```",
     });
     expect(curlLog(fenced)).toBe("");
 
     const tilde = fixture();
-    runHook(tilde, "UserPromptSubmit", {
+    await runHook(tilde, "UserPromptSubmit", {
       prompt: "~~~\n{\"tool_result\":\"secret\"}\n~~~",
     });
     expect(curlLog(tilde)).toBe("");
   });
 
-  it("sends final assistant text then ends the session", () => {
+  it("sends final assistant text then ends the session", async () => {
     const f = fixture();
-    runHook(f, "Stop", {
+    await runHook(f, "Stop", {
       last_assistant_message: "Final ordinary answer",
     });
     const log = curlLog(f);
@@ -232,10 +248,10 @@ describe("agentmemory-light plugin", () => {
     expect(log).not.toContain("private transcript text");
   });
 
-  it("stays non-blocking and still emits discipline when telemetry is unavailable", () => {
+  it("stays non-blocking and still emits discipline when telemetry is unavailable", async () => {
     const f = fixture();
     const output = JSON.parse(
-      runHook(f, "UserPromptSubmit", {prompt: "ordinary"}, {FAKE_CURL_FAIL: "1"}),
+      await runHook(f, "UserPromptSubmit", {prompt: "ordinary"}, {FAKE_CURL_FAIL: "1"}),
     );
     expect(output.hookSpecificOutput.additionalContext).toContain("Use primary instructions");
   });
