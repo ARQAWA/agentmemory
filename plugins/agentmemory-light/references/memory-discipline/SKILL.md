@@ -12,13 +12,13 @@ Memory is useful when relevant prior decisions are recalled at the right time an
 ## Quick start
 
 ```json
-memory_recall { "query": "auth refresh flow", "limit": 5, "project": "agentmemory" }
+memory_recall { "query": "auth refresh flow", "limit": 5, "project": "<current memory project>" }
 ```
 
 when prior decisions are useful for the current task, then at each settled decision:
 
 ```json
-memory_save { "content": "Chose cursor pagination over offset; offset scans broke past 100k rows in db/list.ts.", "concepts": "cursor-pagination, offset-scan-limit", "files": "src/db/list.ts", "project": "agentmemory" }
+memory_save { "content": "Chose cursor pagination over offset; offset scans broke past 100k rows in db/list.ts.", "concepts": "cursor-pagination, offset-scan-limit", "files": "src/db/list.ts", "project": "<current memory project>" }
 ```
 
 ## Why

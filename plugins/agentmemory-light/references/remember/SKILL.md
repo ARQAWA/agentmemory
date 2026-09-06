@@ -16,7 +16,7 @@ memory_save {
   "content": "We rotate JWT refresh tokens on every use; the old token is revoked server-side in auth/refresh.ts.",
   "concepts": "jwt-refresh-rotation, token-revocation, auth-flow",
   "files": "src/auth/refresh.ts",
-  "project": "agentmemory"
+  "project": "<current memory project>"
 }
 ```
 

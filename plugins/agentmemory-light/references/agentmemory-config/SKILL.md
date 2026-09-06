@@ -7,16 +7,23 @@ description: agentmemory configuration, environment variables, ports, and featur
 > This skill does not override primary working rules.
 
 
-agentmemory reads configuration from the environment and from `~/.agentmemory/.env` (one `KEY=value` per line, no `export` prefix). Restart the server after changing it.
+The production backend runs on the configured VPS. Change only the existing
+canonical server configuration and the Codex adapter transport. Read exact
+variable names from REFERENCE.md and source before editing; do not create a
+local daemon or local `.env`.
 
 ## Quick start
 
-Enable richer memory and set a provider key in `~/.agentmemory/.env`:
+The deployment uses separate Luna/Terra reasoning settings and local retrieval
+models. Set them only in the existing server configuration:
 
 ```env
-ANTHROPIC_API_KEY=sk-ant-...
-AGENTMEMORY_AUTO_COMPRESS=true
-AGENTMEMORY_INJECT_CONTEXT=true
+OPENAI_MODEL=gpt-5.6-terra
+AGENTMEMORY_COMPRESSION_MODEL=gpt-5.6-luna
+OPENAI_REASONING_EFFORT=medium
+AGENTMEMORY_COMPRESSION_REASONING_EFFORT=medium
+EMBEDDING_PROVIDER=local
+RERANK_PROVIDER=local
 ```
 
 ## Defaults worth knowing

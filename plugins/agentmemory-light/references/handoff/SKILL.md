@@ -16,7 +16,7 @@ memory_sessions { "limit": 20 }
 ```
 
 Pick the most recent session whose `project` matches the injected current memory project, then:
-`memory_recall { "query": "<session top concepts>", "limit": 10 }`.
+`memory_recall { "query": "<session top concepts>", "limit": 10, "project": "<selected project>" }`.
 
 Expected output:
 

@@ -160,6 +160,9 @@ function validate(toolName: string, args: Record<string, unknown>): Validated {
         const n = Number(budget);
         if (Number.isFinite(n) && n > 0) v.tokenBudget = Math.floor(n);
       }
+      if (toolName === "memory_recall" && typeof args["project"] === "string" && args["project"].trim()) {
+        v.project = args["project"].trim();
+      }
       return v;
     }
     case "memory_sessions": {
@@ -210,6 +213,7 @@ async function handleProxy(
         format: v.format ?? "full",
       };
       if (v.tokenBudget != null) body["token_budget"] = v.tokenBudget;
+      if (v.project !== undefined) body["project"] = v.project;
       const result = await handle.call("/agentmemory/search", {
         method: "POST",
         body: JSON.stringify(body),

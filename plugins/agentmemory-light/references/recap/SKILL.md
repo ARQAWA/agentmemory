@@ -15,7 +15,7 @@ The user wants a recap. Time window args: $ARGUMENTS
 memory_sessions { "limit": 30 }
 ```
 
-Then per surviving session: `memory_recall { "query": "<top concepts>", "limit": 3 }`.
+Then per surviving session: `memory_recall { "query": "<top concepts>", "limit": 3, "project": "<selected project>" }`.
 
 Expected output:
 

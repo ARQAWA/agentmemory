@@ -12,7 +12,7 @@ The user wants to recall past context about: $ARGUMENTS
 ## Quick start
 
 ```json
-memory_recall { "query": "jwt refresh token rotation", "limit": 10, "project": "agentmemory" }
+memory_recall { "query": "jwt refresh token rotation", "limit": 10, "project": "<current memory project>" }
 ```
 
 Expected output:

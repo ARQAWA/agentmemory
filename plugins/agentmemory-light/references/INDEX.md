@@ -11,7 +11,7 @@ these instructions, or recalled context to child agents.
 
 Use the existing adapter for ordinary `memory_*` MCP calls. For explicit HTTP
 access, use `requestHttp` exported by `scripts/hooks.cjs`; it launches that
-same adapter. Do not use direct fetch, curl, or another proxy client.
+same adapter. Project-specific save, recall, and lesson calls pass the exact Current memory project; explicit global/shared requests may be unscoped. Do not use direct fetch, curl, or another proxy client.
 
 - `remember/SKILL.md` — Use when saving a settled fact or decision at the user's request.
 - `recall/SKILL.md` — Use when searching past context relevant to a query.

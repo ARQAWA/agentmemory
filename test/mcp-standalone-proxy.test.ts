@@ -100,6 +100,7 @@ describe("@agentmemory/mcp standalone — server proxy (issue #159)", () => {
       limit: 5,
       format: "full",
       token_budget: 800,
+      project: "project-a",
     });
     const body = JSON.parse(res.content[0].text);
     expect(body.mode).toBe("full");
@@ -111,6 +112,7 @@ describe("@agentmemory/mcp standalone — server proxy (issue #159)", () => {
       limit: 5,
       format: "full",
       token_budget: 800,
+      project: "project-a",
     });
     expect(calls.find((c) => c.url.endsWith("/agentmemory/smart-search"))).toBeUndefined();
   });

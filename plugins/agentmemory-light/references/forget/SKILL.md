@@ -12,7 +12,7 @@ The user wants to remove saved memory from agentmemory: $ARGUMENTS
 ## Quick start
 
 ```json
-memory_recall { "query": "old api key in config", "limit": 20, "project": "agentmemory" }
+memory_recall { "query": "old api key in config", "limit": 20, "project": "<current memory project>" }
 ```
 
 Show the matches, get a yes, then:
