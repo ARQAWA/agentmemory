@@ -18,6 +18,8 @@ let initialized = false;
 let initializing = null;
 let initializedNotification = null;
 let closing = false;
+let reconnectTimer = null;
+let reconnectResolve = null;
 const activeRequests = new Set();
 
 function safeError(error) {
@@ -41,7 +43,7 @@ function parseUrls() {
     if (target.protocol !== 'http:' || !['http:', 'https:'].includes(proxy.protocol) || !proxy.hostname) throw unsupportedError();
   } catch (error) { throw error.code === 'UNSUPPORTED' ? error : unsupportedError(); }
 }
-function headers() {
+function headers(lastEventId = '') {
   const result = { Host: target.host, Accept: 'application/json, text/event-stream' };
   if (proxy.username || proxy.password) {
     const user = decodeURIComponent(proxy.username || '');
@@ -50,12 +52,13 @@ function headers() {
   }
   if (protocolVersion) result['MCP-Protocol-Version'] = protocolVersion;
   if (sessionId) result['MCP-Session-ID'] = sessionId;
+  if (lastEventId) result['Last-Event-ID'] = lastEventId;
   return result;
 }
 function request(method, body, timeoutMs, options = {}) {
   if (closing && method !== 'DELETE') return Promise.reject(new Error());
   const client = proxy.protocol === 'https:' ? https : http;
-  const requestHeaders = headers();
+  const requestHeaders = headers(options.lastEventId || '');
   let requestBody;
   if (body !== undefined) {
     requestBody = Buffer.from(JSON.stringify(body), 'utf8');
@@ -80,19 +83,28 @@ function request(method, body, timeoutMs, options = {}) {
       if (res.statusCode < 200 || res.statusCode >= 300) { finish(httpError(res.statusCode)); res.destroy(); return; }
       let event = '';
       let data = [];
+      let eventId = '';
+      let retryValue;
       let matched = false;
       const rl = readline.createInterface({ input: res, crlfDelay: Infinity });
       const dispatch = () => {
-        if (!data.length) { event = ''; return; }
+        if (!data.length) {
+          if (options.onEventMetadata) options.onEventMetadata({ id: eventId, retry: retryValue });
+          event = '';
+          retryValue = undefined;
+          return;
+        }
         const text = data.join('\n');
         data = [];
         if (event === 'message' || event === '') {
           let item;
           try { item = JSON.parse(text); } catch { event = ''; return; }
+          if (options.onEventMetadata) options.onEventMetadata({ id: eventId, retry: retryValue });
           const stop = options.onMessage ? options.onMessage(item) : false;
           if (stop && !settled) { matched = true; finish(null, { statusCode: res.statusCode, headers: res.headers }); rl.close(); res.destroy(); }
         }
         event = '';
+        retryValue = undefined;
       };
       if (idle) armTimer();
       res.on('data', () => { if (idle) armTimer(); });
@@ -107,6 +119,11 @@ function request(method, body, timeoutMs, options = {}) {
         const value = colon < 0 ? '' : line.slice(colon + 1).replace(/^ /, '');
         if (field === 'event') event = value;
         else if (field === 'data') data.push(value);
+        else if (field === 'id' && !value.includes('\0')) eventId = value;
+        else if (field === 'retry' && /^\d+$/.test(value)) {
+          const parsed = Number(value);
+          if (Number.isFinite(parsed)) retryValue = parsed;
+        }
       });
       rl.on('close', () => { if (data.length) dispatch(); if (matched || !options.stream) finish(null, { statusCode: res.statusCode, headers: res.headers }); });
       res.on('end', () => { if (data.length) dispatch(); finish(null, { statusCode: res.statusCode, headers: res.headers }); });
@@ -143,9 +160,32 @@ async function postMessage(message) {
   try { return JSON.parse(response.text); } catch { throw jsonError(); }
 }
 async function openServerEvents() {
-  if (closing) return;
-  try { validate(await request('GET', undefined, SSE_IDLE_TIMEOUT_MS, { stream: true, onMessage: output })); }
-  catch (error) { if (!(error.code === 'HTTP' && error.status === 405)) process.stderr.write(`MCP SSE: ${safeError(error)}\n`); }
+  let lastEventId = '';
+  let retryMs = 1000;
+  let consecutiveFailures = 0;
+  while (!closing && sessionId) {
+    try {
+      validate(await request('GET', undefined, SSE_IDLE_TIMEOUT_MS, {
+        stream: true,
+        lastEventId,
+        onMessage: output,
+        onEventMetadata: ({ id, retry }) => {
+          if (id) lastEventId = id;
+          if (retry !== undefined) retryMs = retry;
+        },
+      }));
+      consecutiveFailures = 0;
+    } catch (error) {
+      if (error.code === 'HTTP' && (error.status === 404 || error.status === 405)) return;
+      consecutiveFailures += 1;
+      if (consecutiveFailures >= 2) return;
+    }
+    if (closing || !sessionId) return;
+    await new Promise((resolve) => {
+      reconnectResolve = resolve;
+      reconnectTimer = setTimeout(() => { reconnectTimer = null; reconnectResolve = null; resolve(); }, retryMs);
+    });
+  }
 }
 async function handleMessage(message) {
   if (!message || typeof message !== 'object') return;
@@ -193,6 +233,10 @@ async function handleMessage(message) {
 async function cleanup() {
   if (closing) return;
   closing = true;
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  if (reconnectResolve) reconnectResolve();
+  reconnectTimer = null;
+  reconnectResolve = null;
   for (const req of activeRequests) req.destroy();
   if (sessionId && target && proxy) {
     try { await request('DELETE', undefined, DELETE_TIMEOUT_MS); } catch { /* best effort */ }
