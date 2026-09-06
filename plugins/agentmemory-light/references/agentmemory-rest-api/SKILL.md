@@ -14,6 +14,8 @@ proxy; do not assume localhost or configure a second proxy client.
 ## Quick start
 
 ```js
+// Run this example in Node. `referencesDirectory` is the absolute path shown
+// in the injected `Internal references directory` context.
 const { requestHttp } = require(
   require('node:path').join(referencesDirectory, '..', 'scripts', 'hooks.cjs'),
 );

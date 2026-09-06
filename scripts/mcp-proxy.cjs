@@ -59,9 +59,8 @@ function headers(lastEventId = '') {
 function request(method, body, timeoutMs, options = {}) {
   if (closing && method !== 'DELETE') return Promise.reject(new Error());
   const client = proxy.protocol === 'https:' ? https : http;
-  const requestHeaders = options.rawHttp
-    ? { Host: target.host, Accept: 'application/json' }
-    : headers(options.lastEventId || '');
+  const requestHeaders = headers(options.lastEventId || '');
+  if (options.rawHttp) requestHeaders.Accept = 'application/json';
   let requestBody;
   if (body !== undefined) {
     requestBody = Buffer.from(JSON.stringify(body), 'utf8');

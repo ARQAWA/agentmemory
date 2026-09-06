@@ -92,7 +92,7 @@ function requestHttp(method, apiPath, payload, timeoutMs = 180000) {
   if (!transport) return Promise.resolve([false, null]);
   return new Promise((resolve) => {
     const child = execFile(transport.command, [...transport.args, '--http', method, apiPath, String(timeoutMs)], {
-      env: { ...process.env, ...transport.env }, timeout: timeoutMs + 1000, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024,
+      env: { ...process.env, ...transport.env }, timeout: timeoutMs + 1000, encoding: 'utf8',
     }, (error, stdout) => {
       if (error) return resolve([false, null]);
       let parsed;
