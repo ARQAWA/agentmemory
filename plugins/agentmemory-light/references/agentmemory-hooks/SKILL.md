@@ -43,4 +43,4 @@ Captured text is filtered for service wrappers, XML-like blocks, fenced tool or
 review packets, and untrusted memory markers. Errors exit quietly so a hook
 cannot block the host turn.
 
-See `REFERENCE.md` for the exact four registered events.
+The internal instruction catalog is delivered by the existing four emitting events. See `REFERENCE.md` for their exact list.

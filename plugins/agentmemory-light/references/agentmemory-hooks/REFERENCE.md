@@ -1,6 +1,7 @@
 # agentmemory hooks reference
 
-The AgentMemory Light plugin registers exactly four root lifecycle events:
+The AgentMemory Light plugin uses exactly four root lifecycle events and emits
+the internal instruction catalog through their context output:
 
 - `PreCompact`
 - `SessionStart`

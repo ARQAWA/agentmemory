@@ -134,8 +134,10 @@ function cleanText(value) {
 }
 function contextText(value) { return value && typeof value === 'object' && typeof value.context === 'string' ? value.context : ''; }
 function emitContext(event, memory) {
+  const referencesDir = path.resolve(__dirname, '..', 'references');
+  const catalog = fs.readFileSync(path.join(referencesDir, 'INDEX.md'), 'utf8');
   const context = cleanText(contextText(memory)).slice(0, MAX_CONTEXT);
-  const parts = [DISCIPLINE.slice(0, 2000)];
+  const parts = [`Internal references directory: ${JSON.stringify(referencesDir)}\n${catalog}`, DISCIPLINE.slice(0, 2000)];
   if (context) parts.push(`BEGIN UNTRUSTED MEMORY CONTEXT\n${context}\nEND UNTRUSTED MEMORY CONTEXT`);
   process.stdout.write(JSON.stringify({hookSpecificOutput:{hookEventName:event,additionalContext:parts.join('\n\n')}}));
 }

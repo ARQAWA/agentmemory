@@ -1,7 +1,7 @@
 {
   "name": "agentmemory-light",
   "version": "0.0.0",
-  "description": "Root-only AgentMemory skills and session context hooks, adapted by ARQAWA.",
+  "description": "Root-only AgentMemory instructions and session context hooks, adapted by ARQAWA.",
   "author": {
     "name": "Rohit Ghumare",
     "url": "https://github.com/rohitg00"
@@ -9,11 +9,10 @@
   "license": "Apache-2.0",
   "homepage": "https://github.com/rohitg00/agentmemory",
   "repository": "https://github.com/ARQAWA/agentmemory",
-  "skills": "./skills",
   "interface": {
     "displayName": "AgentMemory Light",
     "shortDescription": "Root-only memory context and telemetry.",
-    "longDescription": "Root-only AgentMemory skills and session context hooks, adapted by ARQAWA.",
+    "longDescription": "Root-only AgentMemory instructions and session context hooks, adapted by ARQAWA.",
     "developerName": "ARQAWA",
     "category": "Productivity",
     "capabilities": [

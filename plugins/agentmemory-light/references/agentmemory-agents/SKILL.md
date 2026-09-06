@@ -25,7 +25,7 @@ After wiring, restart the host or run its MCP reload (for example `/mcp` in Clau
 
 ## Notes
 
-- The action skills are included in this personal plugin. After registering the local personal marketplace, add it with `codex plugin add agentmemory-light@personal`. `connect` makes the separately configured memory server available; skills teach the agent when to use it.
+- The action instructions are included in this personal plugin and loaded through the hook context, not shown as registered skills. After registering the local personal marketplace, add it with `codex plugin add agentmemory-light@personal`. `connect` makes the separately configured memory server available; skills teach the agent when to use it.
 - Windows: use WSL2. Native Windows runs the server but `connect` is not supported there.
 
 ## See also
