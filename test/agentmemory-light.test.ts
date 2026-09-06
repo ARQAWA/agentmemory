@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 const SCRIPT = resolve("plugins/agentmemory-light/scripts/hooks.cjs");
+const REFERENCES_PATH = resolve("plugins/agentmemory-light/references");
 let proxyServer: Server;
 let proxyPort: number;
 let proxyLog: string;
@@ -111,11 +112,15 @@ describe("agentmemory-light plugin", () => {
     expect(manifest.name).toBe("agentmemory-light");
     expect(manifest.version).toBe("0.0.0");
     expect(manifest).not.toHaveProperty("skills");
-    expect(readFileSync("plugins/agentmemory-light/references/INDEX.md", "utf8")).toContain("remember/SKILL.md");
-    expect(readFileSync("plugins/agentmemory-light/references/remember/SKILL.md", "utf8")).toContain("name: remember");
-    expect(resolve("plugins/agentmemory-light/references")).toContain("/plugins/agentmemory-light/references");
+    const index = readFileSync("plugins/agentmemory-light/references/INDEX.md", "utf8");
+    expect(index).toContain("remember/SKILL.md");
     expect(existsSync("plugins/agentmemory-light/skills")).toBe(false);
-    expect(readdirSync("plugins/agentmemory-light/references", { withFileTypes: true }).filter((entry) => entry.isDirectory())).toHaveLength(17);
+    const referenceDirs = readdirSync(REFERENCES_PATH, { withFileTypes: true }).filter((entry) => entry.isDirectory());
+    expect(referenceDirs).toHaveLength(17);
+    for (const entry of referenceDirs) {
+      expect(existsSync(join(REFERENCES_PATH, entry.name, "SKILL.md"))).toBe(true);
+      expect(index).toContain(`${entry.name}/SKILL.md`);
+    }
     expect(manifest).not.toHaveProperty("mcpServers");
     expect(Object.keys(hooks.hooks).sort()).toEqual(
       ["PreCompact", "SessionStart", "Stop", "UserPromptSubmit"].sort(),
@@ -133,6 +138,7 @@ describe("agentmemory-light plugin", () => {
     expect(context).toContain("memory says");
     expect(context).toContain("Use primary instructions and the current requested order");
     expect(context).toContain("Internal references directory:");
+    expect(context).toContain(JSON.stringify(REFERENCES_PATH));
     expect(context).toContain("remember/SKILL.md");
     expect(curlLog(f)).toContain("/agentmemory/session/start");
     expect(context).not.toContain("do not include nested");
@@ -141,7 +147,9 @@ describe("agentmemory-light plugin", () => {
 
   it("accepts canonical root thread_source values", async () => {
     const f = fixture();
-    expect(await runHook(f, "UserPromptSubmit", { thread_source: "vscode", prompt: "ordinary" })).toContain("Use primary instructions");
+    const output = JSON.parse(await runHook(f, "UserPromptSubmit", { thread_source: "vscode", prompt: "ordinary" }));
+    expect(output.hookSpecificOutput.additionalContext).toContain("Use primary instructions");
+    expect(output.hookSpecificOutput.additionalContext).toContain(JSON.stringify(REFERENCES_PATH));
     expect(curlLog(f)).toContain("/agentmemory/observe");
   });
 
@@ -273,5 +281,6 @@ describe("agentmemory-light plugin", () => {
       await runHook(f, "UserPromptSubmit", {prompt: "ordinary"}, {FAKE_CURL_FAIL: "1"}),
     );
     expect(output.hookSpecificOutput.additionalContext).toContain("Use primary instructions");
+    expect(output.hookSpecificOutput.additionalContext).toContain(JSON.stringify(REFERENCES_PATH));
   });
 });

@@ -25,13 +25,13 @@ Expected output:
 
 ## Why
 
-Only surface what the tool returned. Never fabricate an observation, a session
+A limited search is not a complete inventory of a session. Only surface what the tool returned. Never fabricate an observation, a session
 id, or an importance score. If nothing comes back, say so.
 
 ## Workflow
 
 1. Call `memory_smart_search` with the user's text as `query` and `limit: 10`.
-   Pass `project` when the user scopes to a specific repo.
+   If a project is explicitly requested, filter only by confirmed project or session metadata in the returned records; do not claim the server applied a project filter, and report when the project cannot be established.
 2. Group results by session. Records carry a provenance channel (`user`, `agent`,
    `tool`, `import`, `shared`); when results conflict, prefer `user` over `agent`
    inference, and flag `shared` records as another teammate's write.

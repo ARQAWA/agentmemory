@@ -35,7 +35,7 @@ Save then recall:
 
 - agentmemory-rest-api for the HTTP equivalents.
 - agentmemory-config for tool-visibility and feature flags.
-- The user-invocable action skills (remember, recall, recap, handoff, forget) wrap the most common tools.
+- The internal action references (remember, recall, recap, handoff, forget) describe the most common tools.
 
 ## Reference
 

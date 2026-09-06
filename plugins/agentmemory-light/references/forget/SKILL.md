@@ -18,7 +18,7 @@ memory_smart_search { "query": "old api key in config", "limit": 20 }
 Show the matches, get a yes, then:
 
 ```json
-memory_governance_delete { "memoryIds": ["abc12345", "def67890"], "reason": "user privacy request" }
+memory_governance_delete { "memoryIds": "abc12345,def67890", "reason": "user privacy request" }
 ```
 
 Expected output:
@@ -37,10 +37,8 @@ an explicit yes before calling delete. Delete by memory ID, never a bare session
 1. Search with `memory_smart_search`, the user's text as `query`, `limit: 20`.
 2. Show what matched: session ids, memory ids, titles. Ask for explicit
    confirmation. Do not proceed on silence or a vague "sure, whatever".
-3. On confirmation, call `memory_governance_delete` with `memoryIds` (array or
-   comma-separated string) and optional `reason` (default `plugin skill request`).
-4. To drop a whole session, collect every memory id in that session from the
-   search results and pass them all. The MCP does not accept a bare `sessionId`.
+3. On confirmation, call `memory_governance_delete` with `memoryIds` as a comma-separated string and optional `reason` (default `plugin skill request`).
+4. Do not treat a limited search as a full inventory of a session; only delete the exact ids shown and confirmed. The MCP does not accept a bare `sessionId`.
 5. Lessons are separate: delete one with `memory_lesson_delete` and its
    `lessonId`; `memory_governance_delete` does not touch lessons.
 6. Report the deletion count back. A count of 0 means the ids did not exist;
