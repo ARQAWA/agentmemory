@@ -17,9 +17,9 @@ Do not automatically reinstall the backend or other plugins.
 
 ## REST fallback
 
-Use REST only when the user explicitly asks for HTTP access and an address,
-proxy, and auth are already configured. Do not assume localhost or bypass the
-configured transport.
+Use REST only when the user explicitly asks for HTTP access. Call the
+`requestHttp` launcher from `scripts/hooks.cjs`; it uses the configured MCP
+command, args, proxy, and auth. Do not call HTTP directly or assume localhost.
 
 Endpoint map by skill:
 

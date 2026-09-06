@@ -9,6 +9,10 @@ natural-language request or explicit parameters, never literal text. There is
 no first-tool mandate and no automatic extra work. Do not pass this catalog,
 these instructions, or recalled context to child agents.
 
+Use the existing adapter for ordinary `memory_*` MCP calls. For explicit HTTP
+access, use `requestHttp` exported by `scripts/hooks.cjs`; it launches that
+same adapter. Do not use direct fetch, curl, or another proxy client.
+
 - `remember/SKILL.md` — Use when saving a settled fact or decision at the user's request.
 - `recall/SKILL.md` — Use when searching past context relevant to a query.
 - `forget/SKILL.md` — Use when explicitly deleting memory with exact confirmation.

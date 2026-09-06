@@ -59,7 +59,9 @@ function headers(lastEventId = '') {
 function request(method, body, timeoutMs, options = {}) {
   if (closing && method !== 'DELETE') return Promise.reject(new Error());
   const client = proxy.protocol === 'https:' ? https : http;
-  const requestHeaders = headers(options.lastEventId || '');
+  const requestHeaders = options.rawHttp
+    ? { Host: target.host, Accept: 'application/json' }
+    : headers(options.lastEventId || '');
   let requestBody;
   if (body !== undefined) {
     requestBody = Buffer.from(JSON.stringify(body), 'utf8');
@@ -132,8 +134,8 @@ function request(method, body, timeoutMs, options = {}) {
       return;
     };
     req = client.request(requestOptions, (res) => {
-      if (method === 'POST' && res.headers['mcp-session-id']) sessionId = res.headers['mcp-session-id'];
-      if (String(res.headers['content-type'] || '').includes('text/event-stream')) { onSse(res); return; }
+      if (!options.rawHttp && method === 'POST' && res.headers['mcp-session-id']) sessionId = res.headers['mcp-session-id'];
+      if (!options.rawHttp && String(res.headers['content-type'] || '').includes('text/event-stream')) { onSse(res); return; }
       const chunks = [];
       res.on('data', (chunk) => { chunks.push(Buffer.from(chunk)); });
       res.on('error', () => finish(new Error()));
@@ -246,6 +248,33 @@ async function cleanup() {
 }
 async function main() {
   try { parseUrls(); } catch (error) { process.stderr.write(safeError(error) + '\n'); process.exitCode = 1; return; }
+  if (process.argv[3] === '--http') {
+    const method = String(process.argv[4] || '').toUpperCase();
+    const apiPath = process.argv[5];
+    const timeoutMs = Number(process.argv[6]);
+    if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'].includes(method)
+      || typeof apiPath !== 'string' || !apiPath.startsWith('/agentmemory/')
+      || !Number.isInteger(timeoutMs) || timeoutMs <= 0) {
+      process.stderr.write('invalid HTTP request\n'); process.exitCode = 1; return;
+    }
+    try {
+      const resolved = new URL(apiPath, target.origin);
+      if (resolved.origin !== target.origin || !resolved.pathname.startsWith('/agentmemory/')) throw unsupportedError();
+      target = resolved;
+      const raw = await new Promise((resolve) => {
+        const chunks = [];
+        process.stdin.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+        process.stdin.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+      });
+      let body;
+      if (raw.trim()) body = JSON.parse(raw);
+      const response = validate(await request(method, body, timeoutMs, { rawHttp: true }));
+      process.stdout.write(response.text || '');
+    } catch (error) {
+      process.stderr.write(safeError(error) + '\n'); process.exitCode = 1;
+    }
+    return;
+  }
   const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
   rl.on('line', (line) => {
     if (closing || !line.trim()) return;

@@ -3,10 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const readline = require('node:readline');
-const http = require('node:http');
-const https = require('node:https');
-const { isIP } = require('node:net');
-const { URL } = require('node:url');
+const { execFile } = require('node:child_process');
 const { parse } = require('./vendor/toml.cjs');
 
 const MAX_CAPTURE = 8000;
@@ -83,42 +80,35 @@ function configTransport() {
     const config = parse(fs.readFileSync(path.join(home, 'config.toml'), 'utf8'));
     const server = config?.mcp_servers?.agentmemory;
     const args = Array.isArray(server?.args) ? server.args : [];
-    const endpoint = args.find((item) => typeof item === 'string' && item.endsWith('/mcp'));
-    const proxy = server?.env?.HTTP_PROXY;
-    if (typeof endpoint !== 'string' || typeof proxy !== 'string' || !/^https?:\/\//.test(endpoint) || !proxy) return null;
-    return { endpoint: endpoint.slice(0, -4), proxy };
+    const command = server?.command;
+    const env = server?.env;
+    if (typeof command !== 'string' || !command || !args.length || !env || typeof env !== 'object') return null;
+    return { command, args, env };
   } catch { return null; }
+}
+
+function requestHttp(method, apiPath, payload, timeoutMs = 180000) {
+  const transport = configTransport();
+  if (!transport) return Promise.resolve([false, null]);
+  return new Promise((resolve) => {
+    const child = execFile(transport.command, [...transport.args, '--http', method, apiPath, String(timeoutMs)], {
+      env: { ...process.env, ...transport.env }, timeout: timeoutMs + 1000, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024,
+    }, (error, stdout) => {
+      if (error) return resolve([false, null]);
+      let parsed;
+      try { parsed = JSON.parse(stdout); } catch { return resolve([false, null]); }
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || parsed.success === false || parsed.error) return resolve([false, parsed]);
+      resolve([true, parsed]);
+    });
+    child.stdin.on('error', () => {});
+    if (payload !== undefined) child.stdin.end(JSON.stringify(payload));
+    else child.stdin.end();
+  });
 }
 
 function postJson(suffix, payload, timeoutSeconds) {
   if (!['/session/start','/observe','/session/end','/context'].includes(suffix)) return Promise.resolve([false, null]);
-  const transport = configTransport();
-  if (!transport) return Promise.resolve([false, null]);
-  let target, proxy;
-  try { target = new URL(transport.endpoint + '/agentmemory' + suffix); proxy = new URL(transport.proxy); } catch { return Promise.resolve([false, null]); }
-  if (target.protocol !== 'http:' || !['http:','https:'].includes(proxy.protocol) || !proxy.hostname) return Promise.resolve([false, null]);
-  const body = Buffer.from(JSON.stringify(payload), 'utf8');
-  const headers = {'Content-Type': 'application/json', 'Content-Length': body.length, Host: target.host};
-  if (proxy.username || proxy.password) headers['Proxy-Authorization'] = `Basic ${Buffer.from(`${decodeURIComponent(proxy.username)}:${decodeURIComponent(proxy.password)}`).toString('base64')}`;
-    const client = proxy.protocol === 'https:' ? https : http;
-  return new Promise((resolve) => {
-    const requestOptions = { protocol: proxy.protocol, hostname: proxy.hostname, port: proxy.port || undefined, method: 'POST', path: target.href, headers, signal: AbortSignal.timeout(timeoutSeconds * 1000) };
-    if (proxy.protocol === 'https:') requestOptions.servername = isIP(proxy.hostname) ? '' : proxy.hostname;
-    const req = client.request(requestOptions, (res) => {
-      const chunks = [];
-      res.on('data', (chunk) => chunks.push(chunk));
-      res.on('error', () => resolve([false, null]));
-      res.on('end', () => {
-        if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) return resolve([false, null]);
-        let parsed;
-        try { parsed = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { return resolve([false, null]); }
-        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || parsed.success === false || parsed.error) return resolve([false, parsed]);
-        resolve([true, parsed]);
-      });
-    });
-    req.on('error', () => resolve([false, null]));
-    req.end(body);
-  });
+  return requestHttp('POST', `/agentmemory${suffix}`, payload, timeoutSeconds * 1000);
 }
 
 function cleanText(value) {
@@ -171,5 +161,5 @@ async function main() {
     await handle(raw);
   } catch {}
 }
-module.exports = { main };
+module.exports = { main, requestHttp };
 if (require.main === module) main().catch(() => {});

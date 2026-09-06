@@ -24,7 +24,7 @@ codex plugin add agentmemory-light@personal
 ## Capture behavior
 
 - `SessionStart` registers `{sessionId, project, cwd}` and may inject bounded,
-  untrusted context from the existing REST route.
+  untrusted context through the adapter's HTTP mode.
 - `UserPromptSubmit` sends only cleaned prompt prose to `/agentmemory/observe`.
 - `Stop` sends the cleaned final answer in the backend-supported shape:
   `hookType: post_tool_use`, `tool_name: assistant_final`,
@@ -33,9 +33,9 @@ codex plugin add agentmemory-light@personal
 - `PreCompact` requests bounded context from `/agentmemory/context`.
 
 The hooks do not capture tool logs, post-commit events, or child-agent events.
-They do not create local storage or call an LLM. The MCP bridge remains a
-separate REST-backed connection; the hooks use the existing `/agentmemory/*`
-REST routes through that transport.
+They do not create local storage or call an LLM. MCP and explicit HTTP use the
+same configured adapter. The hooks call its HTTP mode through `requestHttp`
+and never create a separate REST bridge or direct proxy client.
 
 ## Safety
 
