@@ -14,12 +14,10 @@ REFERENCE.md for reference only.
 
 ## Quick start
 
-```bash
 Read the existing Codex `mcp_servers.agentmemory` entry and restart the host
 after changing it. Do not create a second daemon or MCP connection.
-```
-
-After wiring, restart the host or run its MCP reload (for example `/mcp` in Claude Code) so it picks up the server. Then confirm the agent lists agentmemory's tools.
+Then confirm the agent lists AgentMemory's tools. The Light Node.js adapter also
+supports a native Windows client; no Windows runtime claim is made here.
 
 ## Workflow
 
@@ -31,7 +29,6 @@ After wiring, restart the host or run its MCP reload (for example `/mcp` in Clau
 ## Notes
 
 - The action instructions are included in this personal plugin and loaded through the hook context, not shown as registered skills. The existing Codex MCP entry makes the configured memory server available.
-- Windows: use WSL2. Native Windows runs the server but `connect` is not supported there.
 
 ## See also
 

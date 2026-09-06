@@ -14,17 +14,9 @@ local daemon or local `.env`.
 
 ## Quick start
 
-The deployment uses separate Luna/Terra reasoning settings and local retrieval
-models. Set them only in the existing server configuration:
-
-```env
-OPENAI_MODEL=gpt-5.6-terra
-AGENTMEMORY_COMPRESSION_MODEL=gpt-5.6-luna
-OPENAI_REASONING_EFFORT=medium
-AGENTMEMORY_COMPRESSION_REASONING_EFFORT=medium
-EMBEDDING_PROVIDER=local
-RERANK_PROVIDER=local
-```
+The deployment can use separate Luna/Terra reasoning settings and local
+embedding and reranker models. Set exact values only in the existing server
+configuration after checking REFERENCE.md and source.
 
 ## Defaults worth knowing
 
