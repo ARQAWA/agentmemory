@@ -4,7 +4,7 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
-import { appendFileSync, rmSync } from "node:fs";
+import { appendFileSync, existsSync, readdirSync, rmSync } from "node:fs";
 import { execFile } from "node:child_process";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
@@ -109,7 +109,13 @@ describe("agentmemory-light plugin", () => {
     );
     const hooks = JSON.parse(readFileSync("plugins/agentmemory-light/hooks/hooks.json", "utf8"));
     expect(manifest.name).toBe("agentmemory-light");
-    expect(manifest.skills).toBe("./skills");
+    expect(manifest.version).toBe("0.0.0");
+    expect(manifest).not.toHaveProperty("skills");
+    expect(readFileSync("plugins/agentmemory-light/references/INDEX.md", "utf8")).toContain("remember/SKILL.md");
+    expect(readFileSync("plugins/agentmemory-light/references/remember/SKILL.md", "utf8")).toContain("name: remember");
+    expect(resolve("plugins/agentmemory-light/references")).toContain("/plugins/agentmemory-light/references");
+    expect(existsSync("plugins/agentmemory-light/skills")).toBe(false);
+    expect(readdirSync("plugins/agentmemory-light/references", { withFileTypes: true }).filter((entry) => entry.isDirectory())).toHaveLength(17);
     expect(manifest).not.toHaveProperty("mcpServers");
     expect(Object.keys(hooks.hooks).sort()).toEqual(
       ["PreCompact", "SessionStart", "Stop", "UserPromptSubmit"].sort(),
@@ -126,6 +132,8 @@ describe("agentmemory-light plugin", () => {
     expect(context).toContain("BEGIN UNTRUSTED MEMORY CONTEXT");
     expect(context).toContain("memory says");
     expect(context).toContain("Use primary instructions and the current requested order");
+    expect(context).toContain("Internal references directory:");
+    expect(context).toContain("remember/SKILL.md");
     expect(curlLog(f)).toContain("/agentmemory/session/start");
     expect(context).not.toContain("do not include nested");
     expect(curlLog(f)).toContain("sid-light");
@@ -135,6 +143,15 @@ describe("agentmemory-light plugin", () => {
     const f = fixture();
     expect(await runHook(f, "UserPromptSubmit", { thread_source: "vscode", prompt: "ordinary" })).toContain("Use primary instructions");
     expect(curlLog(f)).toContain("/agentmemory/observe");
+  });
+
+  it("injects the catalog and compact context on PreCompact", async () => {
+    const f = fixture();
+    const output = JSON.parse(await runHook(f, "PreCompact"));
+    const context = output.hookSpecificOutput.additionalContext as string;
+    expect(context).toContain("Internal references directory:");
+    expect(context).toContain("remember/SKILL.md");
+    expect(context).toContain("compact context");
   });
 
   it("captures only cleaned prompt prose and does not require a first tool", async () => {
@@ -175,9 +192,11 @@ describe("agentmemory-light plugin", () => {
         payload: { id: "sid-light", session_id: "sid-light", source },
       })}\n`,
     );
-    const output = await runHook(f, "SessionStart");
-    expect(output).toBe("");
-    expect(curlLog(f)).toBe("");
+    for (const event of ["SessionStart", "UserPromptSubmit", "Stop", "PreCompact"]) {
+      const output = await runHook(f, event, { prompt: "child prompt", last_assistant_message: "child final" });
+      expect(output).toBe("");
+      expect(curlLog(f)).toBe("");
+    }
   });
 
   it("rejects unknown or missing provenance without local fallback", async () => {

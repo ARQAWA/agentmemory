@@ -5,6 +5,7 @@ const path = require('node:path');
 const readline = require('node:readline');
 const http = require('node:http');
 const https = require('node:https');
+const { isIP } = require('node:net');
 const { URL } = require('node:url');
 const { parse } = require('./vendor/toml.cjs');
 
@@ -101,7 +102,9 @@ function postJson(suffix, payload, timeoutSeconds) {
   if (proxy.username || proxy.password) headers['Proxy-Authorization'] = `Basic ${Buffer.from(`${decodeURIComponent(proxy.username)}:${decodeURIComponent(proxy.password)}`).toString('base64')}`;
     const client = proxy.protocol === 'https:' ? https : http;
   return new Promise((resolve) => {
-    const req = client.request({ protocol: proxy.protocol, hostname: proxy.hostname, port: proxy.port || undefined, method: 'POST', path: target.href, headers, signal: AbortSignal.timeout(timeoutSeconds * 1000) }, (res) => {
+    const requestOptions = { protocol: proxy.protocol, hostname: proxy.hostname, port: proxy.port || undefined, method: 'POST', path: target.href, headers, signal: AbortSignal.timeout(timeoutSeconds * 1000) };
+    if (proxy.protocol === 'https:') requestOptions.servername = isIP(proxy.hostname) ? '' : proxy.hostname;
+    const req = client.request(requestOptions, (res) => {
       const chunks = [];
       res.on('data', (chunk) => chunks.push(chunk));
       res.on('error', () => resolve([false, null]));
